@@ -3,6 +3,7 @@ package com.emibap.textureAtlas
 
 	import flash.display.BitmapData;
 	import flash.display.DisplayObject;
+	import flash.display.DisplayObjectContainer;
 	import flash.display.MovieClip;
 	import flash.display.Sprite;
 	import flash.geom.ColorTransform;
@@ -12,14 +13,12 @@ package com.emibap.textureAtlas
 	import flash.text.Font;
 	import flash.text.TextFieldAutoSize;
 	import flash.text.TextFormat;
-    import flash.utils.getQualifiedClassName;
-
-    import starling.text.BitmapFont;
+	import flash.utils.getQualifiedClassName;
+	
+	import starling.text.BitmapFont;
+	import starling.text.TextField;
 	import starling.textures.Texture;
 	import starling.textures.TextureAtlas;
-	import starling.text.TextField;
-	
-	import com.emibap.textureAtlas.TextureItem;
 	
 	/**
 	 * DynamicAtlas.as
@@ -236,7 +235,7 @@ package com.emibap.textureAtlas
 					label = _currentLab;
 				}
 			}
-			var item:TextureItem = new TextureItem(_bData, name, label);
+			var item:TextureItem = new TextureItem(_bData, name, label, _mat.tx, _mat.ty);
 			_items.push(item);
 			_canvas.addChild(item);
 			
@@ -285,7 +284,7 @@ package com.emibap.textureAtlas
 		 * @param	preserveColor:Boolean - A Flag which indicates if the color transforms should be captured or not. Default value is true (capture color transform).
 		 * @return  TextureAtlas - The dynamically generated Texture Atlas.
 		 */
-		static public function fromMovieClipContainer(swf:MovieClip, scaleFactor:Number = 1, margin:uint=0, preserveColor:Boolean = true):TextureAtlas
+		static public function fromMovieClipContainer(swf:DisplayObjectContainer, scaleFactor:Number = 1, margin:uint=0, preserveColor:Boolean = true):TextureAtlas
 		{
 			var parseFrame:Boolean = false;
 			var selected:MovieClip;
@@ -313,8 +312,8 @@ package com.emibap.textureAtlas
 			
 			if (!_canvas)
 				_canvas = new Sprite();
-			
-			swf.gotoAndStop(1);
+			if (swf is MovieClip)
+				MovieClip(swf).gotoAndStop(1);
 			
 			for (var i:uint = 0; i < children; i++)
 			{
@@ -389,6 +388,11 @@ package com.emibap.textureAtlas
 				subText.@width = itm.width;
 				subText.@height = itm.height;
 				subText.@name = itm.textureName;
+				subText.@frameWidth = itm.width;
+				subText.@frameHeight = itm.height;
+				subText.@frameX = itm.frameOffsetX;
+				subText.@frameY = itm.frameOffsetY;
+				
 				if (itm.frameName != "")
 					subText.@frameLabel = itm.frameName;
 				xml.appendChild(subText);
