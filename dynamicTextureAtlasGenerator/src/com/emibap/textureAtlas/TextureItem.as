@@ -6,20 +6,28 @@ package com.emibap.textureAtlas{
 	
 	public class TextureItem extends Sprite{
 		
+		// Maximum frame width is used.
+		public static var frameWidth:Number = 0;
+		public static var frameHeight:Number = 0;
+		
 		private var _graphic:BitmapData;
 		private var _textureName:String = "";
 		private var _frameName:String = "";
-		private var _frameOffsetX:Number;
-		private var _frameOffsetY:Number;
+		private var _frameX:Number;
+		private var _frameY:Number;
 		
-		public function TextureItem(graphic:BitmapData, textureName:String, frameName:String, frameOffsetX:Number = 0, frameOffsetY:Number = 0){
+		public function TextureItem(graphic:BitmapData, textureName:String, frameName:String, 
+									frameX:Number = 0, frameY:Number = 0, frameWidth:Number = 0, frameHeight:Number = 0){
 			super();
 			
 			_graphic = graphic;
 			_textureName = textureName;
 			_frameName = frameName;
-			_frameOffsetX = frameOffsetX;
-			_frameOffsetY = frameOffsetY;
+			_frameX = frameX;
+			_frameY = frameY;
+			
+			TextureItem.frameWidth = frameWidth > TextureItem.frameWidth ? frameWidth : TextureItem.frameWidth;
+			TextureItem.frameHeight = frameHeight > TextureItem.frameHeight ? frameHeight : TextureItem.frameHeight;
 			
 			var bm:Bitmap = new Bitmap(graphic, "auto", false);
 			addChild(bm);
@@ -38,13 +46,11 @@ package com.emibap.textureAtlas{
 		}
 
 		public function get frameOffsetX():Number {
-			return _frameOffsetX;
+			return _frameX;
 		}
 
 		public function get frameOffsetY():Number {
-			return _frameOffsetY;
+			return _frameY;
 		}
-
-
 	}
 }

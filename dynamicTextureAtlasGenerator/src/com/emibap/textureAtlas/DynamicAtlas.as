@@ -95,20 +95,19 @@ package com.emibap.textureAtlas
 	
 	public class DynamicAtlas
 	{
-		static protected const DEFAULT_CANVAS_WIDTH:Number = 640;
+		static public const MAX_CANVAS_DIMENSION:Number = 2048;
 		
 		static protected var _items:Array;
 		static protected var _canvas:Sprite;
 		
 		static protected var _currentLab:String;
 		
-		static protected var _x:Number;
-		static protected var _y:Number;
-		
 		static protected var _bData:BitmapData;
 		static protected var _mat:Matrix;
 		static protected var _margin:Number;
 		static protected var _preserveColor:Boolean;
+		
+		static protected var _scaleFactor:Number = 1;
 		
 		// Will not be used - Only using one static method
 		public function DynamicAtlas()
@@ -141,7 +140,7 @@ package com.emibap.textureAtlas
 			for (var i:uint = 0; i < len; i++)
 			{
 				itm = _items[i];
-				if ((xPos + itm.width) > DEFAULT_CANVAS_WIDTH)
+				if ((xPos + itm.width) > MAX_CANVAS_DIMENSION)
 				{
 					xPos = 0;
 					yPos += maxY;
@@ -170,7 +169,6 @@ package com.emibap.textureAtlas
 		   for (var i:int = embeddedFonts.length - 1; i > -1 && embeddedFonts[i].fontName != fontFamily; i--) { }
 		   
 		   return (i > -1);
-		   
 		}
 		
 		/**
@@ -188,6 +186,9 @@ package com.emibap.textureAtlas
 			bounds.y = Math.floor(bounds.y);
 			bounds.height = Math.ceil(bounds.height);
 			bounds.width = Math.ceil(bounds.width);
+			
+			bounds.width = bounds.width > 0 ? bounds.width : 1;
+			bounds.height = bounds.height > 0 ? bounds.height : 1;
 			
 			var realBounds:Rectangle = new Rectangle(0, 0, bounds.width + _margin * 2, bounds.height + _margin * 2);
 			
@@ -235,7 +236,8 @@ package com.emibap.textureAtlas
 					label = _currentLab;
 				}
 			}
-			var item:TextureItem = new TextureItem(_bData, name, label, _mat.tx, _mat.ty);
+
+			var item:TextureItem = new TextureItem(_bData, name, label, _mat.tx - clip.x * _scaleFactor, _mat.ty - clip.y * _scaleFactor, _bData.width, _bData.height);
 			_items.push(item);
 			_canvas.addChild(item);
 			
@@ -286,6 +288,8 @@ package com.emibap.textureAtlas
 		 */
 		static public function fromMovieClipContainer(swf:DisplayObjectContainer, scaleFactor:Number = 1, margin:uint=0, preserveColor:Boolean = true):TextureAtlas
 		{
+			_scaleFactor = scaleFactor;
+			
 			var parseFrame:Boolean = false;
 			var selected:MovieClip;
 			var selectedTotalFrames:int;
@@ -315,18 +319,111 @@ package com.emibap.textureAtlas
 			if (swf is MovieClip)
 				MovieClip(swf).gotoAndStop(1);
 			
+			applyScale(swf, scaleFactor);
+			
 			for (var i:uint = 0; i < children; i++)
 			{
 				selected = MovieClip(swf.getChildAt(i));
 				selectedTotalFrames = selected.totalFrames;
 				selectedColorTransform = selected.transform.colorTransform;
-				_x = selected.x;
-				_y = selected.y;
+				
+				m = 0;
+				
+				// Draw every frame
+				
+				while (++m <= selectedTotalFrames)
+				{
+					selected.gotoAndStop(m);
+					drawItem(selected, selected.name + "_" + appendIntToString(m - 1, 5), selected.name, selectedColorTransform);
+				}
+			}
+			
+			_currentLab = "";
+			
+			layoutChildren();
+			
+			var maxDimension:Number = _canvas.width > _canvas.height ? _canvas.width : _canvas.height;
+			
+			// If frame dimensions are too large suggest a scale that will 
+			// guarantee that all frames will fit within the max sprite sheet dimensions.
+			if (maxDimension > MAX_CANVAS_DIMENSION) {
+				var suggestedScale:Number = getSuggestedScale();
+				
+				// undo scale changes and clean up
+				applyScale(swf, 1/scaleFactor);
+				cleanUp();	
+				
+				throw new ScaleFactorTooLargeError(suggestedScale);
+			}
+			
+			canvasData = new BitmapData(_canvas.width, _canvas.height, true, 0x000000);
+			canvasData.draw(_canvas);
+			
+			xml = new XML(<TextureAtlas></TextureAtlas>);
+			xml.@imagePath = "atlas.png";
+			
+			itemsLen = _items.length;
+			
+			for (var k:uint = 0; k < itemsLen; k++)
+			{
+				itm = _items[k];
+				
+				itm.graphic.dispose();
+				
+				// xml
+				subText = new XML(<SubTexture />); 
+				subText.@x = itm.x;
+				subText.@y = itm.y;
+				subText.@width = itm.width;
+				subText.@height = itm.height;
+				subText.@name = itm.textureName;
+				subText.@frameWidth = TextureItem.frameWidth;
+				subText.@frameHeight = TextureItem.frameHeight;
+				subText.@frameX = itm.frameOffsetX;
+				subText.@frameY = itm.frameOffsetY;
+				
+				if (itm.frameName != "")
+					subText.@frameLabel = itm.frameName;
+				xml.appendChild(subText);
+			}
+			texture = Texture.fromBitmapData(canvasData);
+			atlas = new TextureAtlas(texture, xml);
+			xml = null;
+			
+			cleanUp();
+			
+			return atlas;
+		}
+		
+		private static function cleanUp():void {
+			_items.length = 0;
+			_canvas.removeChildren();
+			
+			_items = null;
+			_canvas = null;
+			_currentLab = null;
+			
+			TextureItem.frameWidth = 0;
+			TextureItem.frameHeight = 0;
+			
+			//_x = _y = _margin = null;
+		}
+		
+		private static function applyScale(swf:DisplayObjectContainer, scaleFactor:Number):void {
+			var selected:MovieClip;
+			var selectedTotalFrames:int;
+			var selectedColorTransform:ColorTransform;			
+			
+			var children:uint = swf.numChildren;
+			for (var i:uint = 0; i < children; i++)
+			{
+				selected = MovieClip(swf.getChildAt(i));
+				selectedTotalFrames = selected.totalFrames;
+				selectedColorTransform = selected.transform.colorTransform;
 				
 				// Scaling if needed (including filters)
 				if (scaleFactor != 1)
 				{
-					
 					selected.scaleX *= scaleFactor;
 					selected.scaleY *= scaleFactor;
 					
@@ -352,65 +449,38 @@ package com.emibap.textureAtlas
 						selected.filters = filters;
 					}
 				}
-				
-				m = 0;
-				
-				// Draw every frame
-				while (++m <= selectedTotalFrames)
-				{
-					selected.gotoAndStop(m);
-					drawItem(selected, selected.name + "_" + appendIntToString(m - 1, 5), selected.name, selectedColorTransform);
+			}
+			
+		}
+		/**
+		 * Returns a scale that will guarantee that all frames will
+		 * fit within max spritesheet dimensions.
+		 */
+		private static function getSuggestedScale():Number {
+			var unscaledWidth:Number = TextureItem.frameWidth / _scaleFactor;
+			var unscaledHeight:Number = TextureItem.frameHeight / _scaleFactor;
+			var whRatio:Number = unscaledWidth / unscaledHeight;
+			
+			var i:uint = 1;
+			var found:Boolean = false;
+			var newFWidth:Number;
+			var newFHeight:Number;
+			while(!found) {
+				newFWidth = 2048/i - i * _margin * 2;
+				newFHeight = newFWidth / whRatio;
+				var numRows:Number = Math.ceil(_items.length / i);
+				var totalHeight:Number = numRows * (newFHeight + 2 * _margin);
+				if (totalHeight < 2048) {
+					found = true;
 				}
+				i++
 			}
 			
-			_currentLab = "";
+			var suggestedScale:Number = newFHeight/unscaledHeight;
+			if (suggestedScale > 1)
+				suggestedScale = 1;	
 			
-			layoutChildren();
-			
-			canvasData = new BitmapData(_canvas.width, _canvas.height, true, 0x000000);
-			canvasData.draw(_canvas);
-			
-			xml = new XML(<TextureAtlas></TextureAtlas>);
-			xml.@imagePath = "atlas.png";
-			
-			itemsLen = _items.length;
-			
-			for (var k:uint = 0; k < itemsLen; k++)
-			{
-				itm = _items[k];
-				
-				itm.graphic.dispose();
-				
-				// xml
-				subText = new XML(<SubTexture />); 
-				subText.@x = itm.x;
-				subText.@y = itm.y;
-				subText.@width = itm.width;
-				subText.@height = itm.height;
-				subText.@name = itm.textureName;
-				subText.@frameWidth = itm.width;
-				subText.@frameHeight = itm.height;
-				subText.@frameX = itm.frameOffsetX;
-				subText.@frameY = itm.frameOffsetY;
-				
-				if (itm.frameName != "")
-					subText.@frameLabel = itm.frameName;
-				xml.appendChild(subText);
-			}
-			texture = Texture.fromBitmapData(canvasData);
-			atlas = new TextureAtlas(texture, xml);
-			
-			
-			_items.length = 0;
-			_canvas.removeChildren();
-			
-			_items = null;
-			xml = null;
-			_canvas = null;
-			_currentLab = null;
-			//_x = _y = _margin = null;
-			
-			return atlas;
+			return suggestedScale;
 		}
 		
 		/**
@@ -536,7 +606,5 @@ package com.emibap.textureAtlas
 			_canvas = null;
 			_currentLab = null;
 		}
-		
 	}
-
 }
