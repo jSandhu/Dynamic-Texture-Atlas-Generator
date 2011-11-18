@@ -224,6 +224,7 @@ package com.emibap.textureAtlas
 			_mat = clip.transform.matrix;
 			_mat.translate(-realBounds.x + _margin, -realBounds.y + _margin);
 			
+			advanceChildren(clip);
 			_bData.draw(clip, _mat, _preserveColor ? clipColorTransform : null);
 			
 			//realBounds.offset(-_x - _margin, -_y - _margin);
@@ -245,6 +246,23 @@ package com.emibap.textureAtlas
 			_bData = null;
 			
 			return item;
+		}
+		
+		private static function advanceChildren(clip:DisplayObject):void {
+			var doc:DisplayObjectContainer = clip as DisplayObjectContainer;
+			if (!doc) return;
+			
+			for (var i:uint = 0; i < doc.numChildren; i++) {
+				var child:MovieClip = doc.getChildAt(i) as MovieClip;
+				if (!child) continue;
+				
+				var curChildFrame:uint = child.currentFrame;
+				if (curChildFrame < child.totalFrames) {
+					child.gotoAndStop(++curChildFrame);
+				} else {
+					child.gotoAndStop(1);
+				}
+			}
 		}
 		
 		// Public methods
