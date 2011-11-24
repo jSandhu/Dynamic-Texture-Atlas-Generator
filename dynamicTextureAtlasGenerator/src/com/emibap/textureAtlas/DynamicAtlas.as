@@ -309,7 +309,7 @@ package com.emibap.textureAtlas
 			_scaleFactor = scaleFactor;
 			
 			var parseFrame:Boolean = false;
-			var selected:MovieClip;
+			var selected:DisplayObject;
 			var selectedTotalFrames:int;
 			var selectedColorTransform:ColorTransform;
 			
@@ -341,18 +341,20 @@ package com.emibap.textureAtlas
 			
 			for (var i:uint = 0; i < children; i++)
 			{
-				selected = MovieClip(swf.getChildAt(i));
-				selectedTotalFrames = selected.totalFrames;
+				selected = swf.getChildAt(i);
 				selectedColorTransform = selected.transform.colorTransform;
 				
-				m = 0;
-				
-				// Draw every frame
-				
-				while (++m <= selectedTotalFrames)
-				{
-					selected.gotoAndStop(m);
-					drawItem(selected, selected.name + "_" + appendIntToString(m - 1, 5), selected.name, selectedColorTransform);
+				if (selected is MovieClip) {
+					// Draw every frame
+					var selectedMovie:MovieClip = MovieClip(selected); 
+					m = 0;				
+					selectedTotalFrames = selectedMovie.totalFrames;
+					while (++m <= selectedTotalFrames) {
+						selectedMovie.gotoAndStop(m);
+						drawItem(selected, selectedMovie.name + "_" + appendIntToString(m - 1, 5), selectedMovie.name, selectedColorTransform);
+					}
+				} else {
+					drawItem(selected, selected.name + "_" + appendIntToString(0, 5), selected.name, selectedColorTransform);
 				}
 			}
 			
@@ -408,6 +410,7 @@ package com.emibap.textureAtlas
 			atlas = new TextureAtlas(texture, xml);
 			xml = null;
 			
+			applyScale(swf, 1/scaleFactor);
 			cleanUp();
 			
 			return atlas;
@@ -428,15 +431,14 @@ package com.emibap.textureAtlas
 		}
 		
 		private static function applyScale(swf:DisplayObjectContainer, scaleFactor:Number):void {
-			var selected:MovieClip;
+			var selected:DisplayObject;
 			var selectedTotalFrames:int;
 			var selectedColorTransform:ColorTransform;			
 			
 			var children:uint = swf.numChildren;
 			for (var i:uint = 0; i < children; i++)
 			{
-				selected = MovieClip(swf.getChildAt(i));
-				selectedTotalFrames = selected.totalFrames;
+				selected = swf.getChildAt(i);
 				selectedColorTransform = selected.transform.colorTransform;
 				
 				// Scaling if needed (including filters)
