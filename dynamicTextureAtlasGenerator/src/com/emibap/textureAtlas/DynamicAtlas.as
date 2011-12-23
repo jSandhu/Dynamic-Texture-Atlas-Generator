@@ -302,9 +302,11 @@ package com.emibap.textureAtlas
 		 * @param	scaleFactor:Number - The scaling factor to apply to every object. Default value is 1 (no scaling).
 		 * @param	margin:uint - The amount of pixels that should be used as the resulting image margin (for each side of the image). Default value is 0 (no margin).
 		 * @param	preserveColor:Boolean - A Flag which indicates if the color transforms should be captured or not. Default value is true (capture color transform).
+		 * @param	fromFrameLabel:String - Only draw frames between specified frameLabel and the next one (fromFrameLabel frame inclusive).  
 		 * @return  TextureAtlas - The dynamically generated Texture Atlas.
 		 */
-		static public function fromMovieClipContainer(swf:DisplayObjectContainer, scaleFactor:Number = 1, margin:uint=0, preserveColor:Boolean = true):TextureAtlas
+		static public function fromMovieClipContainer(swf:DisplayObjectContainer, scaleFactor:Number = 1, 
+													  margin:uint=0, preserveColor:Boolean = true, fromFrameLabel:String = null):TextureAtlas
 		{
 			_scaleFactor = scaleFactor;
 			
@@ -346,12 +348,20 @@ package com.emibap.textureAtlas
 				
 				if (selected is MovieClip) {
 					// Draw every frame
-					var selectedMovie:MovieClip = MovieClip(selected); 
-					m = 0;				
+					var selectedMovie:MovieClip = MovieClip(selected);
+					if (fromFrameLabel) {
+						selectedMovie.gotoAndStop(fromFrameLabel);
+						m = selectedMovie.currentFrame;
+					} else {
+						m = 1;	
+					}
 					selectedTotalFrames = selectedMovie.totalFrames;
-					while (++m <= selectedTotalFrames) {
+					var frameLabelSectionEnd:Boolean = false;
+					while (m++ <= selectedTotalFrames && !frameLabelSectionEnd) {
 						selectedMovie.gotoAndStop(m);
 						drawItem(selected, selectedMovie.name + "_" + appendIntToString(m - 1, 5), selectedMovie.name, selectedColorTransform);
+						
+						frameLabelSectionEnd = (fromFrameLabel && selectedMovie.currentFrameLabel != null  && selectedMovie.currentFrameLabel != fromFrameLabel)
 					}
 				} else {
 					drawItem(selected, selected.name + "_" + appendIntToString(0, 5), selected.name, selectedColorTransform);
