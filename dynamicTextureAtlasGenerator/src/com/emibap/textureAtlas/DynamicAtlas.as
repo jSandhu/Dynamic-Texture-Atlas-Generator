@@ -356,12 +356,14 @@ package com.emibap.textureAtlas
 						m = 1;	
 					}
 					selectedTotalFrames = selectedMovie.totalFrames;
-					var frameLabelSectionEnd:Boolean = false;
-					while (m++ <= selectedTotalFrames && !frameLabelSectionEnd) {
+					while (m <= selectedTotalFrames) {
 						selectedMovie.gotoAndStop(m);
-						drawItem(selected, selectedMovie.name + "_" + appendIntToString(m - 1, 5), selectedMovie.name, selectedColorTransform);
 						
-						frameLabelSectionEnd = (fromFrameLabel && selectedMovie.currentFrameLabel != null  && selectedMovie.currentFrameLabel != fromFrameLabel)
+						// if we are copying frames from a label, and we have reached the next label, break;
+						if (fromFrameLabel && selectedMovie.currentFrameLabel != null  && selectedMovie.currentFrameLabel != fromFrameLabel) break;
+
+						drawItem(selected, selectedMovie.name + "_" + appendIntToString(m - 1, 5), selectedMovie.name, selectedColorTransform);
+						m++;
 					}
 				} else {
 					drawItem(selected, selected.name + "_" + appendIntToString(0, 5), selected.name, selectedColorTransform);
